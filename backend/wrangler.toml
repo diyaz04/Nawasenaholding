@@ -1,0 +1,17 @@
+name = "nawasena-backend"
+main = "src/index.ts"
+compatibility_date = "2024-03-20"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["0 0 * * *"] # Run daily closing at midnight by default, but we have closing_config in db
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nawasena-d1"
+database_id = "277b6c2e-1a4c-4e6b-9fb4-7f5d61727cdc"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "nawasena-bucket"

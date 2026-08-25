@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Build Outputs
+dist/
+build/
+.wrangler/
+.mf/
+out/
+
+# OS and Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database (SQLite local)
+*.sqlite
+*.sqlite3
+*.db
+.wrangler/state/
