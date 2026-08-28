@@ -468,23 +468,29 @@ async function generateShopeeSign(path: string, partnerKey: string, partnerId: s
 }
 
 app.get('/api/admin/shopee/auth-url', async (c) => {
-  const partnerId = c.env.SHOPEE_PARTNER_ID
-  const partnerKey = c.env.SHOPEE_PARTNER_KEY
+  try {
+    const partnerId = c.env.SHOPEE_PARTNER_ID
+    const partnerKey = c.env.SHOPEE_PARTNER_KEY
+    
+    if (!partnerId || partnerId === 'YOUR_PARTNER_ID') {
+      return c.json({ url: 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback?code=mock_code_123&shop_id=999999' })
+    }
   
-  // Mock fallback if user hasn't put real keys
-  if (!partnerId || partnerId === 'YOUR_PARTNER_ID') {
-    return c.json({ url: 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback?code=mock_code_123&shop_id=999999' })
-  }
+    if (!partnerKey) {
+      throw new Error("SHOPEE_PARTNER_KEY missing in environment variables.")
+    }
 
-  const timestamp = Math.floor(Date.now() / 1000)
-  const path = '/api/v2/shop/auth_partner'
-  // Callback harus menunjuk ke API Backend ini sendiri
-  const redirectUrl = 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback'
-  
-  const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
-  const authUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}&redirect=${encodeURIComponent(redirectUrl)}`
-  
-  return c.json({ url: authUrl })
+    const timestamp = Math.floor(Date.now() / 1000)
+    const path = '/api/v2/shop/auth_partner'
+    const redirectUrl = 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback'
+    
+    const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
+    const authUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}&redirect=${encodeURIComponent(redirectUrl)}`
+    
+    return c.json({ url: authUrl })
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500)
+  }
 })
 
 // Public Callback endpoint to receive redirection from Shopee
