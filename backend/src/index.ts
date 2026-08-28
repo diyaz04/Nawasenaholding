@@ -485,7 +485,7 @@ app.get('/api/admin/shopee/auth-url', async (c) => {
     const redirectUrl = 'https://nawasena-backend.diyazsriwulan.workers.dev/api/shopee/callback'
     
     const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
-    const authUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}&redirect=${encodeURIComponent(redirectUrl)}`
+    const authUrl = `https://partner.test-stable.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}&redirect=${encodeURIComponent(redirectUrl)}`
     
     return c.json({ url: authUrl })
   } catch (err: any) {
@@ -514,7 +514,7 @@ app.get('/api/shopee/callback', async (c) => {
       const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
 
       const body = { code, shop_id: Number(shopId), partner_id: Number(partnerId) }
-      const tokenRes = await fetch(`https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`, {
+      const tokenRes = await fetch(`https://partner.test-stable.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -1324,7 +1324,7 @@ async function refreshShopeeTokens(env: Env) {
       const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
 
       const body = { refresh_token: acc.refresh_token, shop_id: Number(acc.shop_id), partner_id: Number(partnerId) }
-      const tokenRes = await fetch(`https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`, {
+      const tokenRes = await fetch(`https://partner.test-stable.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
