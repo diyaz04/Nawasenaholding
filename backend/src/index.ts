@@ -545,8 +545,8 @@ app.get('/api/shopee/callback', async (c) => {
 
     // Redirect kembali ke frontend dashboard
     return c.redirect('https://nawasenaholdingfrontend.diyazsriwulan.workers.dev/admin/shopee?status=success')
-  } catch (error) {
-    return c.redirect('https://nawasenaholdingfrontend.diyazsriwulan.workers.dev/admin/shopee?status=error')
+  } catch (error: any) {
+    return c.redirect('https://nawasenaholdingfrontend.diyazsriwulan.workers.dev/admin/shopee?status=error&msg=' + encodeURIComponent(error.message || String(error)))
   }
 })
 
