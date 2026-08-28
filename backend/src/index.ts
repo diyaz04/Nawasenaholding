@@ -544,7 +544,9 @@ app.get('/api/shopee/callback', async (c) => {
   }
 })
 
-app.get('/api/admin/shopee/accounts', async (c) => {
+app.post('/api/shopee/push', async (c) => { try { const payload = await c.req.json(); await c.env.DB.prepare('CREATE TABLE IF NOT EXISTS shopee_push_logs (id TEXT PRIMARY KEY, payload TEXT, received_at TEXT DEFAULT CURRENT_TIMESTAMP)').run(); await c.env.DB.prepare('INSERT INTO shopee_push_logs (id, payload) VALUES (?, ?)').bind(crypto.randomUUID(), JSON.stringify(payload)).run(); return c.json({ received: true }, 200); } catch (error) { return c.json({ received: true }, 200); } });
+
+  app.get('/api/admin/shopee/accounts', async (c) => {
   const { results } = await c.env.DB.prepare('SELECT id, shop_id, shop_name, is_active, connected_at, token_expires_at FROM shopee_accounts').all()
   return c.json(results)
 })
