@@ -19,7 +19,13 @@ type Variables = {
 const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Update with production URL later
+  origin: (origin) => {
+    // Izinkan localhost dan URL production Cloudflare
+    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.pages.dev') || origin.includes('.workers.dev')) {
+      return origin || '*'
+    }
+    return 'http://localhost:5173'
+  },
   credentials: true
 }))
 
