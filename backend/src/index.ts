@@ -455,11 +455,11 @@ app.post('/api/admin/patterns/seed', async (c) => {
 
 // Helper: Generate HMAC-SHA256 signature for Shopee Open API
 async function generateShopeeSign(path: string, partnerKey: string, partnerId: string, timestamp: number, shopId: string | null = null) {
-  let baseStr = partnerId + path + timestamp
+  let baseStr = partnerId.trim() + path + timestamp
   if (shopId) baseStr += shopId
 
   const encoder = new TextEncoder()
-  const keyData = encoder.encode(partnerKey)
+  const keyData = encoder.encode(partnerKey.trim())
   const msgData = encoder.encode(baseStr)
 
   const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
@@ -469,8 +469,8 @@ async function generateShopeeSign(path: string, partnerKey: string, partnerId: s
 
 app.get('/api/admin/shopee/auth-url', async (c) => {
   try {
-    const partnerId = c.env.SHOPEE_PARTNER_ID
-    const partnerKey = c.env.SHOPEE_PARTNER_KEY
+    const partnerId = c.env.SHOPEE_PARTNER_ID?.trim()
+    const partnerKey = c.env.SHOPEE_PARTNER_KEY?.trim()
     
     if (!partnerId || partnerId === 'YOUR_PARTNER_ID') {
       return c.json({ url: 'https://nawasena-backend.diyazsriwulan.workers.dev/api/shopee/callback?code=mock_code_123&shop_id=999999' })
