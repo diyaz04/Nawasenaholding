@@ -6,6 +6,9 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["0 * * * *"] # Run hourly to check Shopee tokens and daily closing
 
+[vars]
+SHOPEE_PARTNER_ID = "1242497"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "nawasena-d1"
