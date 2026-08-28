@@ -473,7 +473,7 @@ app.get('/api/admin/shopee/auth-url', async (c) => {
     const partnerKey = c.env.SHOPEE_PARTNER_KEY
     
     if (!partnerId || partnerId === 'YOUR_PARTNER_ID') {
-      return c.json({ url: 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback?code=mock_code_123&shop_id=999999' })
+      return c.json({ url: 'https://nawasena-backend.diyazsriwulan.workers.dev/api/shopee/callback?code=mock_code_123&shop_id=999999' })
     }
   
     if (!partnerKey) {
@@ -482,7 +482,7 @@ app.get('/api/admin/shopee/auth-url', async (c) => {
 
     const timestamp = Math.floor(Date.now() / 1000)
     const path = '/api/v2/shop/auth_partner'
-    const redirectUrl = 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback'
+    const redirectUrl = 'https://nawasena-backend.diyazsriwulan.workers.dev/api/shopee/callback'
     
     const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
     const authUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}&redirect=${encodeURIComponent(redirectUrl)}`
