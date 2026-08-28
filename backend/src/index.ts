@@ -935,7 +935,7 @@ app.get('/api/admin/dashboard/charts', async (c) => {
 
 import * as XLSX from 'xlsx'
 
-app.get('/api/reports/monthly', async (c) => {
+app.get('/api/admin/reports/monthly', async (c) => {
   const month = c.req.query('month')
   const year = c.req.query('year')
   
@@ -1051,7 +1051,7 @@ app.get('/api/reports/daily/export/excel', async (c) => {
 })
 
 
-app.get('/api/reports/monthly/export/excel', async (c) => {
+app.get('/api/admin/reports/monthly/export/excel', async (c) => {
   const month = c.req.query('month')
   const year = c.req.query('year')
   
