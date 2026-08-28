@@ -55,6 +55,7 @@ const PosTreeRow = ({ node, level = 0 }: { node: any, level?: number }) => (
 export default function Dashboard() {
   const [metrics, setMetrics] = useState<any>({
     income_this_month: 0,
+    estimated_this_month: 0,
     expenses_this_month: 0,
     total_balance: 0,
     pending_closings_count: 0
@@ -157,14 +158,24 @@ export default function Dashboard() {
       )}
       
       {/* METRICS CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Omset Bulan Ini</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Omset Real (Cair)</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatRp(metrics.income_this_month)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Estimasi (Masuk)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatRp(metrics.estimated_this_month)}</div>
           </CardContent>
         </Card>
         
@@ -245,7 +256,8 @@ export default function Dashboard() {
                       <YAxis tickFormatter={(val) => `Rp ${val / 1000}k`} tick={{ fontSize: 12 }} />
                       <Tooltip formatter={(value: number) => formatRp(value)} />
                       <Legend />
-                      <Line type="monotone" dataKey="total_revenue" name="Omset" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="total_revenue" name="Omset Real" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="estimated_revenue" name="Estimasi Masuk" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" />
                       <Line type="monotone" dataKey="total_ads_cost" name="Biaya Iklan" stroke="#ef4444" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>

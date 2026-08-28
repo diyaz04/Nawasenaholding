@@ -691,7 +691,7 @@ app.get('/api/admin/daily-closings/:id/allocations', async (c) => {
 })
 
 // The Engine logic extracted to a reusable function
-async function executeClosingDistribution(env: Env, closingDate: string, totalRevenue: number, totalAdsCost: number, patternId: string, closingIdToUpdate: string | null = null) {
+async function executeClosingDistribution(env: Env, closingDate: string, totalRevenue: number, totalAdsCost: number, patternId: string, closingIdToUpdate: string | null = null, estimatedRevenue: number = 0) {
   // 1. Fetch pattern allocations
   const { results: allocs } = await env.DB.prepare('SELECT pos_id, percentage, allocation_type, nominal_amount FROM pattern_allocations WHERE pattern_id=?').bind(patternId).all()
   
@@ -751,9 +751,9 @@ async function executeClosingDistribution(env: Env, closingDate: string, totalRe
     stmts.push(env.DB.prepare('UPDATE daily_closings SET status=?, total_ads_cost=?, ads_cost_source=?, processed_at=CURRENT_TIMESTAMP WHERE id=?').bind('completed', totalAdsCost, 'manual', closingIdToUpdate))
   } else {
     stmts.push(env.DB.prepare(`
-      INSERT INTO daily_closings (id, closing_date, pattern_id_used, total_revenue, total_ads_cost, ads_cost_source, status, processed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).bind(newClosingId, closingDate, patternId, totalRevenue, totalAdsCost, 'api', 'completed'))
+      INSERT INTO daily_closings (id, closing_date, pattern_id_used, total_revenue, estimated_revenue, total_ads_cost, ads_cost_source, status, processed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(newClosingId, closingDate, patternId, totalRevenue, estimatedRevenue, totalAdsCost, 'api', 'completed'))
   }
 
   // Save allocations and update balances
@@ -774,20 +774,24 @@ async function fetchShopeeDailyData(env: Env) {
   if (accounts.length === 0) throw new Error('Tidak ada akun Shopee aktif.')
   
   let totalIncome = 0
+  let estimatedIncome = 0
   let totalAdsCost = 0
   let adsAvailable = true
 
   for (const acc of accounts) {
     if (acc.shop_id === '999999' || env.SHOPEE_PARTNER_ID === 'YOUR_PARTNER_ID') {
-      totalIncome += Math.floor(Math.random() * 10000000 + 5000000)
+      const inc = Math.floor(Math.random() * 10000000 + 5000000)
+      totalIncome += inc
+      estimatedIncome += inc + Math.floor(Math.random() * 3000000 + 1000000)
       totalAdsCost += Math.floor(Math.random() * 1000000 + 200000)
     } else {
       totalIncome += 0
+      estimatedIncome += 0
       adsAvailable = false
     }
   }
   
-  return { totalIncome, totalAdsCost, adsAvailable }
+  return { totalIncome, estimatedIncome, totalAdsCost, adsAvailable }
 }
 
 app.post('/api/admin/run-closing', async (c) => {
@@ -804,19 +808,19 @@ app.post('/api/admin/run-closing', async (c) => {
   if (existing) return c.json({ error: `Tutup buku untuk tanggal ${closingDate} sudah dijalankan.` }, 400)
 
   try {
-    const { totalIncome, totalAdsCost, adsAvailable } = await fetchShopeeDailyData(c.env)
+    const { totalIncome, estimatedIncome, totalAdsCost, adsAvailable } = await fetchShopeeDailyData(c.env)
     
     if (!adsAvailable) {
       // Pending state
       const closingId = crypto.randomUUID()
       await c.env.DB.prepare(`
-        INSERT INTO daily_closings (id, closing_date, pattern_id_used, total_revenue, total_ads_cost, ads_cost_source, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(closingId, closingDate, config.active_pattern_id, totalIncome, 0, 'api', 'pending').run()
+        INSERT INTO daily_closings (id, closing_date, pattern_id_used, total_revenue, estimated_revenue, total_ads_cost, ads_cost_source, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(closingId, closingDate, config.active_pattern_id, totalIncome, estimatedIncome, 0, 'api', 'pending').run()
       return c.json({ success: true, status: 'pending', message: 'Iklan gagal diambil, menunggu input manual.' })
     } else {
       // Completed state
-      await executeClosingDistribution(c.env, closingDate, totalIncome, totalAdsCost, config.active_pattern_id as string)
+      await executeClosingDistribution(c.env, closingDate, totalIncome, totalAdsCost, config.active_pattern_id as string, crypto.randomUUID(), estimatedIncome)
       return c.json({ success: true, status: 'completed' })
     }
   } catch (error: any) {
@@ -892,13 +896,14 @@ app.get('/api/admin/dashboard/metrics', async (c) => {
   const now = new Date()
   const currentMonth = now.toISOString().slice(0, 7)
 
-  const incomeResult = await c.env.DB.prepare("SELECT SUM(total_revenue) as total FROM daily_closings WHERE status = 'completed' AND closing_date LIKE ?").bind(`${currentMonth}%`).first()
+  const incomeResult = await c.env.DB.prepare("SELECT SUM(total_revenue) as total, SUM(estimated_revenue) as estimated FROM daily_closings WHERE status = 'completed' AND closing_date LIKE ?").bind(`${currentMonth}%`).first()
   const expenseResult = await c.env.DB.prepare("SELECT SUM(amount) as total FROM expenses WHERE expense_date LIKE ?").bind(`${currentMonth}%`).first()
   const balanceResult = await c.env.DB.prepare("SELECT SUM(current_balance) as total FROM pos_balances").first()
   const pendingResult = await c.env.DB.prepare("SELECT COUNT(id) as count FROM daily_closings WHERE status = 'pending'").first()
 
   return c.json({
     income_this_month: incomeResult?.total || 0,
+    estimated_this_month: incomeResult?.estimated || 0,
     expenses_this_month: expenseResult?.total || 0,
     total_balance: balanceResult?.total || 0,
     pending_closings_count: pendingResult?.count || 0
@@ -911,7 +916,7 @@ app.get('/api/admin/dashboard/charts', async (c) => {
 
   // Daily Trend
   const { results: trend } = await c.env.DB.prepare(`
-    SELECT closing_date as date, total_revenue, total_ads_cost 
+    SELECT closing_date as date, total_revenue, estimated_revenue, total_ads_cost 
     FROM daily_closings 
     WHERE status = 'completed' AND closing_date >= ? AND closing_date <= ? 
     ORDER BY closing_date ASC
@@ -984,7 +989,7 @@ app.get('/api/admin/reports/monthly', async (c) => {
 
   // 5. Daily Details
   const { results: daily } = await c.env.DB.prepare(`
-    SELECT closing_date, total_revenue, total_ads_cost, ads_cost_source, pattern_id_used, status
+    SELECT closing_date, total_revenue, estimated_revenue, total_ads_cost, ads_cost_source, pattern_id_used, status
     FROM daily_closings
     WHERE closing_date LIKE ?
     ORDER BY closing_date ASC
@@ -1064,7 +1069,7 @@ app.get('/api/admin/reports/monthly/export/excel', async (c) => {
   const { results: allocations } = await c.env.DB.prepare("SELECT a.pos_id, SUM(a.allocated_amount) as total_in FROM daily_closing_allocations a JOIN daily_closings dc ON a.daily_closing_id = dc.id WHERE dc.status = 'completed' AND dc.closing_date LIKE ? GROUP BY a.pos_id").bind(`${targetPrefix}%`).all()
   const { results: posExpenses } = await c.env.DB.prepare("SELECT pos_id, SUM(amount) as total_out FROM expenses WHERE expense_date LIKE ? GROUP BY pos_id").bind(`${targetPrefix}%`).all()
   const { results: allPos } = await c.env.DB.prepare("SELECT * FROM pos ORDER BY order_index ASC").all()
-  const { results: daily } = await c.env.DB.prepare("SELECT closing_date, total_revenue, total_ads_cost, status FROM daily_closings WHERE closing_date LIKE ? ORDER BY closing_date ASC").bind(`${targetPrefix}%`).all()
+  const { results: daily } = await c.env.DB.prepare("SELECT closing_date, total_revenue, estimated_revenue, total_ads_cost, status FROM daily_closings WHERE closing_date LIKE ? ORDER BY closing_date ASC").bind(`${targetPrefix}%`).all()
 
   // Format Helper
   const allocMap = Object.fromEntries(allocations.map((a: any) => [a.pos_id, a.total_in]))
@@ -1109,7 +1114,8 @@ app.get('/api/admin/reports/monthly/export/excel', async (c) => {
   // Sheet 3: Daily Details
   const dailyData = daily.map((d: any) => ({
     'Tanggal': d.closing_date,
-    'Omset (Rp)': d.total_revenue,
+    'Estimasi (Rp)': d.estimated_revenue,
+    'Omset Real (Rp)': d.total_revenue,
     'Biaya Iklan (Rp)': d.total_ads_cost,
     'Status': d.status === 'completed' ? 'Selesai' : 'Tertunda'
   }))
@@ -1383,14 +1389,14 @@ export default {
         // Idempotency check
         const existing = await env.DB.prepare('SELECT id FROM daily_closings WHERE closing_date=?').bind(currentDateStr).first()
         if (!existing) {
-          const { totalIncome, totalAdsCost, adsAvailable } = await fetchShopeeDailyData(env)
+          const { totalIncome, estimatedIncome, totalAdsCost, adsAvailable } = await fetchShopeeDailyData(env)
           if (!adsAvailable) {
             await env.DB.prepare(`
-              INSERT INTO daily_closings (id, closing_date, pattern_id_used, total_revenue, total_ads_cost, ads_cost_source, status)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).bind(crypto.randomUUID(), currentDateStr, config.active_pattern_id, totalIncome, 0, 'api', 'pending').run()
+              INSERT INTO daily_closings (id, closing_date, pattern_id_used, total_revenue, estimated_revenue, total_ads_cost, ads_cost_source, status)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(crypto.randomUUID(), currentDateStr, config.active_pattern_id, totalIncome, estimatedIncome, 0, 'api', 'pending').run()
           } else {
-            await executeClosingDistribution(env, currentDateStr, totalIncome, totalAdsCost, config.active_pattern_id as string)
+            await executeClosingDistribution(env, currentDateStr, totalIncome, totalAdsCost, config.active_pattern_id as string, null, estimatedIncome)
           }
           console.log(`Successfully ran automated closing for ${currentDateStr}`)
         }

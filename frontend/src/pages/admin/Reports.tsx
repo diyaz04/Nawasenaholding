@@ -188,7 +188,8 @@ export default function Reports() {
               <thead>
                 <tr className="bg-gray-200">
                   <th className="border p-2 text-left">Tanggal</th>
-                  <th className="border p-2 text-right">Omset (Gross)</th>
+                  <th className="border p-2 text-right">Estimasi (Masuk)</th>
+                  <th className="border p-2 text-right">Omset Real (Cair)</th>
                   <th className="border p-2 text-right">Biaya Iklan</th>
                   <th className="border p-2 text-center">Status</th>
                 </tr>
@@ -197,7 +198,8 @@ export default function Reports() {
                 {report.daily_details.map((d: any, idx: number) => (
                   <tr key={idx} className="border-b">
                     <td className="border p-2">{d.closing_date}</td>
-                    <td className="border p-2 text-right">{formatRp(d.total_revenue)}</td>
+                    <td className="border p-2 text-right text-blue-600">{formatRp(d.estimated_revenue)}</td>
+                    <td className="border p-2 text-right text-green-600">{formatRp(d.total_revenue)}</td>
                     <td className="border p-2 text-right">{formatRp(d.total_ads_cost)}</td>
                     <td className="border p-2 text-center">
                       <span className={`px-2 py-0.5 rounded text-xs ${d.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>

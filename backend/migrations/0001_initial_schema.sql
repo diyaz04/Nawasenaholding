@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS daily_closings (
     closing_date DATE UNIQUE NOT NULL,
     pattern_id_used TEXT NOT NULL,
     total_revenue REAL NOT NULL,
+    estimated_revenue REAL NOT NULL DEFAULT 0,
     total_ads_cost REAL NOT NULL,
     ads_cost_source TEXT NOT NULL, -- 'api' | 'manual'
     status TEXT NOT NULL, -- 'pending' | 'completed' | 'failed'
