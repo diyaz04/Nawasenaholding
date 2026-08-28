@@ -473,12 +473,13 @@ app.get('/api/admin/shopee/auth-url', async (c) => {
   
   // Mock fallback if user hasn't put real keys
   if (!partnerId || partnerId === 'YOUR_PARTNER_ID') {
-    return c.json({ url: 'http://localhost:5173/api/shopee/callback?code=mock_code_123&shop_id=999999' })
+    return c.json({ url: 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback?code=mock_code_123&shop_id=999999' })
   }
 
   const timestamp = Math.floor(Date.now() / 1000)
   const path = '/api/v2/shop/auth_partner'
-  const redirectUrl = 'http://localhost:5173/api/shopee/callback'
+  // Callback harus menunjuk ke API Backend ini sendiri
+  const redirectUrl = 'https://nawasenaholding.diyazsriwulan.workers.dev/api/shopee/callback'
   
   const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
   const authUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}&redirect=${encodeURIComponent(redirectUrl)}`
@@ -515,7 +516,7 @@ app.get('/api/shopee/callback', async (c) => {
       const tokenData = await tokenRes.json()
       
       if (tokenData.error) {
-        return c.text(`Shopee Token Error: ${tokenData.error} - ${tokenData.message}`, 400)
+        return c.redirect(`https://nawasenaholdingfrontend.diyazsriwulan.workers.dev/admin/shopee?status=error&msg=${encodeURIComponent(tokenData.message)}`)
       }
       accessToken = tokenData.access_token
       refreshToken = tokenData.refresh_token
@@ -536,10 +537,10 @@ app.get('/api/shopee/callback', async (c) => {
         is_active=1
     `).bind(crypto.randomUUID(), shopId, shopName, accessToken, refreshToken, expiresAt).run()
 
-    // Redirect to frontend
-    return c.redirect('/admin/shopee?status=success')
+    // Redirect kembali ke frontend dashboard
+    return c.redirect('https://nawasenaholdingfrontend.diyazsriwulan.workers.dev/admin/shopee?status=success')
   } catch (error) {
-    return c.text('Gagal memproses otorisasi Shopee', 500)
+    return c.redirect('https://nawasenaholdingfrontend.diyazsriwulan.workers.dev/admin/shopee?status=error')
   }
 })
 
@@ -1296,10 +1297,61 @@ app.post('/api/admin/payroll/:id/process', async (c) => {
   return c.json({ success: true })
 })
 
+// Fungsi otomatis untuk me-refresh token Shopee
+async function refreshShopeeTokens(env: Env) {
+  if (env.SHOPEE_PARTNER_ID === 'YOUR_PARTNER_ID') return; // Skip if no real keys
+  
+  // Ambil semua akun yang aktif dan akan expired dalam 1 jam (3600000 ms) atau yang sudah expired
+  const oneHourFromNow = new Date(Date.now() + 3600000).toISOString()
+  const { results: expiringAccounts } = await env.DB.prepare(
+    'SELECT shop_id, refresh_token FROM shopee_accounts WHERE is_active = 1 AND token_expires_at <= ?'
+  ).bind(oneHourFromNow).all()
+
+  for (const acc of expiringAccounts) {
+    try {
+      const partnerId = env.SHOPEE_PARTNER_ID
+      const partnerKey = env.SHOPEE_PARTNER_KEY
+      const timestamp = Math.floor(Date.now() / 1000)
+      const path = '/api/v2/auth/access_token/get'
+      const sign = await generateShopeeSign(path, partnerKey, partnerId, timestamp)
+
+      const body = { refresh_token: acc.refresh_token, shop_id: Number(acc.shop_id), partner_id: Number(partnerId) }
+      const tokenRes = await fetch(`https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      const tokenData = await tokenRes.json()
+
+      if (!tokenData.error) {
+        const expiresAt = new Date(Date.now() + tokenData.expire_in * 1000).toISOString()
+        await env.DB.prepare(`
+          UPDATE shopee_accounts 
+          SET access_token = ?, refresh_token = ?, token_expires_at = ? 
+          WHERE shop_id = ?
+        `).bind(tokenData.access_token, tokenData.refresh_token, expiresAt, acc.shop_id).run()
+        console.log(`Successfully refreshed token for shop ${acc.shop_id}`)
+      } else {
+        console.error(`Failed to refresh token for shop ${acc.shop_id}: ${tokenData.message}`)
+      }
+    } catch (e) {
+      console.error(`Error refreshing token for shop ${acc.shop_id}:`, e)
+    }
+  }
+}
+
 export default {
   fetch: app.fetch,
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
     console.log("Cron trigger invoked");
+    
+    // 1. Auto-refresh Shopee Tokens
+    try {
+      await refreshShopeeTokens(env)
+    } catch (e) {
+      console.error("Shopee token refresh failed:", e)
+    }
+
     try {
       const config = await env.DB.prepare('SELECT * FROM closing_config LIMIT 1').first()
       if (!config || !config.is_enabled || !config.closing_time || !config.active_pattern_id) return
