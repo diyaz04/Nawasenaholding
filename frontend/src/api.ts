@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Gunakan localhost saat development, dan Worker URL saat production
+const API_URL = import.meta.env.DEV ? 'http://localhost:8787/api' : (import.meta.env.VITE_API_URL || 'https://nawasenaholding.diyazsriwulan.workers.dev/api');
 
 export const fetchApi = async (endpoint: string, options?: RequestInit) => {
   const response = await fetch(`${API_URL}${endpoint}`, options);

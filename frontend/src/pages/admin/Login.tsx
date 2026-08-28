@@ -140,14 +140,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <button 
-              onClick={() => setIsRegistering(!isRegistering)} 
-              className="text-slate-500 hover:text-amber-500 text-xs font-medium transition-colors"
-            >
-              {isRegistering ? 'Sudah punya akun? Login di sini' : 'Buat akun admin pertama kali (Sekali pakai)'}
-            </button>
-          </div>
         </div>
       </div>
     </div>
